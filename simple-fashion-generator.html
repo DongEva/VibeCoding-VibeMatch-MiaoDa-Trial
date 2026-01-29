@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>服饰搭配生成</title>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 颜色变量 - 杂志风格 */
+            --primary-color: #B8860B; /* 复古金 */
+            --primary-dark: #8B4513; /* 深焦糖色 */
+            --bg-color: #F5F1E8; /* 米白/浅卡其 */
+            --text-color: #2C2C2C; /* 深灰而非纯黑 */
+            --white: #ffffff;
+            
+            /* =================================================================
+               ★ 待机界面按钮配置区 (请在此处调整数值) ★
+               ================================================================= */
+            --home-btn-bottom: 2vh;    /* [位置] 距离屏幕底部的距离 (15vh = 屏幕总高度的15%) */
+            --home-btn-width: 120px;    /* [宽度] 按钮的固定宽度 (例如 220px) */
+            --home-btn-height: 56px;    /* [高度] 按钮的固定高度 (例如 56px) */
+            --home-btn-radius: 50px;    /* [圆角] 按钮圆角 (高度的一半可呈现完美的胶囊形) */
+            /* ================================================================= */
+
+            /* 字体 */
+            --font-serif: 'Playfair Display', serif;
+            --font-sans: 'Inter', sans-serif;
+            
+            /* 响应式尺寸变量 */
+            --container-padding: clamp(16px, 4vw, 24px);
+            --border-radius-lg: clamp(12px, 3vw, 20px);
+            --border-radius-md: clamp(8px, 2vw, 12px);
+            
+            /* 安全区域变量 */
+            --safe-top: env(safe-area-inset-top, 20px);
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
+            
+            /* 字体大小变量 */
+            --font-xs: clamp(0.75rem, 2.5vw, 0.85rem);
+            --font-sm: clamp(0.85rem, 3vw, 1rem);
+            --font-md: clamp(1rem, 3.5vw, 1.1rem);
+            --font-lg: clamp(1.2rem, 4vw, 1.5rem);
+            --font-xl: clamp(1.5rem, 5vw, 2rem);
+            --font-xxl: clamp(2rem, 8vw, 3rem);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh; /* 适配移动端动态高度 */
+        }
+
+        /* Page Structure */
+        .page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            background-color: var(--bg-color);
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 10;
+            padding-bottom: var(--safe-bottom);
+        }
+
+        .page.active {
+            display: block;
+            opacity: 1;
+            z-index: 20;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: var(--container-padding);
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding-top: max(var(--container-padding), var(--safe-top));
+        }
+
+        /* --- Page 1: Home (待机界面) --- */
+        #page-home {
+            cursor: pointer;
+            
+            /* [布局对齐] 使用 Flexbox 布局 */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end; /* 将内容推到容器底部 */
+            align-items: center;       /* 将内容在水平方向居中 */
+            
+            /* [位置应用] 
+               按钮距离底部的实际距离 = 变量设置的距离 + 底部安全区
+               此处直接引用了 --home-btn-bottom 变量
+            */
+            padding-bottom: calc(var(--home-btn-bottom) + var(--safe-bottom));
+            position: relative; /* Ensure relative positioning for absolute children */
+            overflow: hidden;   /* Prevent video overflow */
+        }
+
+        /* Video Background */
+        .home-bg-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+        }
+
+        .start-btn {
+            /* =================================================================
+               [尺寸核心控制] - 引用顶部配置区的变量
+               ================================================================= */
+            width: var(--home-btn-width);   /* 按钮宽度 */
+            height: var(--home-btn-height); /* 按钮高度 */
+            border-radius: var(--home-btn-radius); /* 按钮圆角 */
+            padding: 0;                     /* 清除内边距，防止撑大按钮 */
+            flex: none;                     /* [关键修复] 禁止按钮在 Flex 容器中自动拉伸，强制使用固定高度 */
+            
+            /* [内容居中] 确保文字永远在按钮的正中心 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            /* ================================================================= */
+            
+            /* --- 字体样式 --- */
+            font-family: var(--font-serif);
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--primary-dark);
+            
+            /* --- 背景与玻璃质感 --- */
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            
+            /* --- 边框与阴影 --- */
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.6);
+            border-left: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 
+                0 10px 30px rgba(0,0,0,0.1), 
+                inset 0 0 20px rgba(255,255,255,0.2);
+            
+            /* --- 动画效果 --- */
+            z-index: 10;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: float-btn 3s ease-in-out infinite;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 15px 40px rgba(184, 134, 11, 0.2);
+        }
+
+        .start-btn:active {
+            transform: scale(0.98);
+            background: var(--primary-color);
+            color: var(--white);
+        }
+
+        @keyframes float-btn {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Fallback background if image missing */
+        #page-home::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            z-index: -1;
+            display: none; /* Only show via JS if image fails */
+        }
+
+        /* --- Page 2: Upload (上传界面) --- */
+        #page-upload {
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(rgba(245, 241, 232, 0.9), rgba(245, 241, 232, 0.9)),
+                url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: clamp(20px, 4vh, 30px);
+            padding-top: 10px;
+        }
+
+        h1 {
+            font-family: var(--font-serif);
+            font-size: var(--font-xxl);
+            color: var(--primary-dark);
+            margin-bottom: 8px;
+            font-weight: 700;
+            font-style: italic;
+            line-height: 1.2;
+        }
+        
+        p {
+            font-family: var(--font-sans);
+            font-size: var(--font-sm);
+            color: #666;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .upload-section {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: var(--container-padding);
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 15px 35px rgba(139, 69, 19, 0.08);
+            border: 1px solid rgba(184, 134, 11, 0.15);
+            margin-bottom: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(5px);
+        }
+
+        .form-group {
+            margin-bottom: clamp(20px, 3vh, 30px);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-family: var(--font-serif);
+            font-weight: 600;
+            color: var(--primary-dark);
+            font-size: var(--font-lg);
+        }
+
+        .upload-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .upload-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 50px;
+            font-size: var(--font-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: clamp(40px, 10vw, 50px);
+        }
+
+        .camera-btn {
+            background-color: var(--primary-color);
+            color: var(--white);
+            box-shadow: 0 4px 10px rgba(212, 165, 116, 0.3);
+        }
+        
+        .camera-btn:active {
+            background-color: var(--primary-dark);
+            transform: scale(0.98);
+        }
+
+        .gallery-btn {
+            background-color: var(--white);
+            color: var(--primary-color);
+            border: 1.5px solid var(--primary-color);
+        }
+        
+        .gallery-btn:active {
+            background-color: #fcfcfc;
+            transform: scale(0.98);
+        }
+
+        #clothingImage { display: none; }
+
+        .image-preview {
+            margin-top: 15px;
+            border: 2px solid #D4C4B0;
+            border-radius: var(--border-radius-md);
+            overflow: hidden;
+            display: none;
+            max-height: 25vh;
+            background-color: #f9f9f9;
+        }
+
+        .image-preview.active { display: block; }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #D4C4B0;
+            border-radius: var(--border-radius-md);
+            font-size: var(--font-sm);
+            resize: none;
+            min-height: 80px;
+            height: clamp(80px, 15vh, 120px);
+            font-family: var(--font-serif); /* Serif for input */
+            background-color: #FAF9F6;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: var(--white);
+            box-shadow: inset 0 2px 5px rgba(184, 134, 11, 0.05);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            margin-top: auto; /* Push to bottom of flex container */
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 50px;
+            font-family: var(--font-cn-sans); /* Update to Source Han Sans */
+            font-size: var(--font-md);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            height: clamp(48px, 12vw, 56px);
+            letter-spacing: 0.5px;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+            box-shadow: 0 8px 20px rgba(184, 134, 11, 0.3);
+            flex: 2; /* Make generate button wider */
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .generate-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(184, 134, 11, 0.4);
+        }
+
+        .generate-btn:active {
+            transform: scale(0.98);
+        }
+
+        .clear-btn {
+            background-color: transparent;
+            color: #8B7355;
+            border: 1px solid #D4C4B0;
+            flex: 1;
+        }
+        
+        .clear-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: #FAF8F5;
+        }
+
+        /* --- Page 3: Processing (加载中界面) --- */
+        #page-processing {
+            background-color: var(--bg-color); /* 使用米白背景 */
+            color: var(--text-color);
+            display: none; /* override default */
+            /* 纸张纹理背景 */
+            background-image: 
+                linear-gradient(rgba(245, 241, 232, 0.9), rgba(245, 241, 232, 0.9)),
+                url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+        }
+        
+        #page-processing.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 纸张呼吸动画容器 */
+        .paper-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: paper-breathe 8s ease-in-out infinite;
+            /* 边缘细阴影 */
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.05);
+        }
+
+        @keyframes paper-breathe {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.005) rotate(0.05deg); }
+        }
+
+        .processing-content {
+            text-align: center;
+            padding: var(--container-padding);
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        /* 放大镜动画区域容器 */
+        .scan-wrapper {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 40px;
+        }
+
+        /* 面料背景层 (被裁剪的圆形) */
+        .fabric-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 模拟面料背景 */
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h20v20H0z' fill='%23e0dcd0' fill-opacity='0.4'/%3E%3Cpath d='M0 0l10 10M10 0l10 10M0 10l10 10M10 10l10 10' stroke='%23d0c8b0' stroke-width='1'/%3E%3C/svg%3E");
+            border-radius: 50%;
+            overflow: hidden;
+            border: 1px solid rgba(184, 134, 11, 0.1);
+            z-index: 1;
+        }
+
+        /* 放大镜 (悬浮在上层，不被裁剪) */
+        .magnifier {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(3px) brightness(1.1);
+            -webkit-backdrop-filter: blur(3px) brightness(1.1); /* 兼容 Safari */
+            box-shadow: 
+                0 4px 15px rgba(0,0,0,0.15),
+                inset 0 0 20px rgba(255,255,255,0.6);
+            top: 50%;
+            left: 50%;
+            /* 使用 margin 居中，避免在 keyframes 中重复计算 translate */
+            margin-left: -40px;
+            margin-top: -40px;
+            animation: scan-move 5s ease-in-out infinite;
+            will-change: transform; /* 性能优化 */
+            z-index: 2;
+        }
+
+        /* 放大镜手柄 */
+        .magnifier::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            right: -12px;
+            width: 24px;
+            height: 6px;
+            background: var(--primary-color);
+            transform: rotate(45deg);
+            border-radius: 4px;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* 镜下纹理强化 */
+        .magnifier-texture {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='10' viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 5h10M5 0v10' stroke='%238B4513' stroke-width='0.5' opacity='0.4'/%3E%3C/svg%3E");
+            opacity: 0.8;
+            animation: texture-rotate 10s linear infinite;
+        }
+
+        /* 轮廓勾勒线条 */
+        .outline-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            border: 1px dashed var(--primary-color);
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: pulse-outline 3s ease-in-out infinite;
+        }
+
+        /* 优化后的扫描路径，移除 calc 复杂计算，提升移动端兼容性 */
+        @keyframes scan-move {
+            0% { transform: translate(-30px, -30px) scale(1); }
+            25% { transform: translate(30px, -20px) scale(1.1); }
+            50% { transform: translate(20px, 30px) scale(1); }
+            75% { transform: translate(-25px, 25px) scale(1.1); }
+            100% { transform: translate(-30px, -30px) scale(1); }
+        }
+
+        @keyframes texture-rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse-outline {
+            0%, 100% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.2; }
+            50% { transform: translate(-50%, -50%) scale(0.98); opacity: 0.5; }
+        }
+
+        .processing-title {
+            font-family: var(--font-serif);
+            font-size: var(--font-xl);
+            margin-bottom: 20px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            line-height: 1.3;
+            font-style: italic;
+        }
+
+        .processing-subtitle {
+            font-family: var(--font-sans);
+            font-size: var(--font-sm);
+            color: #666;
+            margin-bottom: 50px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 300;
+            height: 1.5em; /* 固定高度防止跳动 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* 文本轮播动画 */
+        .fade-text {
+            animation: text-fade 3s ease-in-out infinite;
+        }
+
+        @keyframes text-fade {
+            0%, 100% { opacity: 0; transform: translateY(5px); }
+            20%, 80% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Page 4: Result (结果展示界面) --- */
+        .result-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            background-color: var(--bg-color);
+        }
+
+        .result-header {
+            padding: 20px var(--container-padding);
+            text-align: center;
+            background-color: transparent;
+            /* 纸张纹理背景 */
+            background-image: 
+                linear-gradient(rgba(245, 241, 232, 0.95), rgba(245, 241, 232, 0.95)),
+                url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            border-bottom: 1px solid rgba(184, 134, 11, 0.1);
+            flex-shrink: 0;
+            padding-top: max(20px, var(--safe-top));
+        }
+
+        .result-title-main {
+            font-family: var(--font-serif);
+            font-size: var(--font-xl);
+            color: var(--primary-dark);
+            margin-bottom: 8px;
+            font-weight: 700;
+            font-style: italic;
+        }
+
+        .result-title-sub {
+            font-family: var(--font-sans);
+            font-size: var(--font-xs);
+            color: #8B7355;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .result-content {
+            flex: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background-color: #e6e6e6;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        .main-result-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .main-result-image.loaded {
+            opacity: 1;
+        }
+
+        .result-original-thumb-wrapper {
+            position: absolute;
+            bottom: calc(20px + var(--safe-bottom));
+            left: 20px;
+            z-index: 10;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            transition: transform 0.3s ease;
+        }
+
+        .result-original-thumb-wrapper:active {
+            transform: scale(1.1);
+        }
+
+        .result-original-thumb {
+            width: clamp(70px, 18vw, 90px);
+            height: clamp(90px, 24vw, 120px);
+            border-radius: 8px;
+            border: 2px solid var(--white);
+            object-fit: cover;
+            display: block;
+        }
+        
+        .thumb-label {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--primary-dark);
+            color: var(--white);
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+            font-family: var(--font-serif);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .prompt-decoration {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-family: var(--font-serif);
+            font-size: 0.8rem;
+            color: var(--primary-dark);
+            letter-spacing: 2px;
+            max-height: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            z-index: 5;
+            padding: 15px 8px;
+            font-style: normal;
+            font-weight: 600;
+            
+            /* Tag Style */
+            background-color: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(184, 134, 11, 0.3);
+            border-radius: 40px; /* Pill shape */
+            box-shadow: 
+                0 4px 15px rgba(0,0,0,0.1),
+                inset 0 0 0 1px rgba(255,255,255,0.5);
+            
+            /* Animation */
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .prompt-decoration.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Tag hanging thread decoration */
+        .prompt-decoration::before {
+            content: '';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1px;
+            height: 25px;
+            background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.8) 50%, rgba(184, 134, 11, 0.5));
+            pointer-events: none;
+        }
+
+        .result-actions {
+            padding: var(--container-padding);
+            /* 纸张纹理背景 */
+            background-image: 
+                linear-gradient(rgba(245, 241, 232, 0.98), rgba(245, 241, 232, 0.98)),
+                url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            border-top: 1px solid rgba(184, 134, 11, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 20;
+            padding-bottom: max(var(--container-padding), var(--safe-bottom));
+            flex-shrink: 0;
+        }
+
+        .result-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: var(--font-serif);
+            font-size: var(--font-md);
+            letter-spacing: 1px;
+        }
+
+        .back-btn {
+            background-color: transparent;
+            color: var(--primary-dark);
+            border: 1px solid var(--primary-dark);
+        }
+        
+        .back-btn:active {
+            background-color: rgba(139, 69, 19, 0.05);
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+            width: 100%;
+            box-shadow: 0 8px 20px rgba(184, 134, 11, 0.25);
+            display: block;
+            position: relative;
+            overflow: hidden;
+            border: none;
+        }
+        
+        .download-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(184, 134, 11, 0.4);
+        }
+        
+        .download-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Common Elements */
+        .info {
+            background-color: #EBF8FF;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #BEE3F8;
+            color: #2B6CB0;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            background-color: rgba(255,255,255,0.5);
+            color: var(--primary-dark);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: 1px solid #D4C4B0;
+            font-family: var(--font-cn-sans);
+            transition: all 0.2s;
+        }
+
+        .tag:hover {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border-color: var(--primary-color);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background-color: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 0.95rem;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { background-color: #E74C3C; }
+        .toast.success { background-color: #27ae60; }
+
+        /* History Refined */
+        .history-header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            border-bottom: 2px solid var(--primary-dark);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .history-header h3 { 
+            font-family: var(--font-serif);
+            font-size: 1.2rem; 
+            color: var(--primary-dark);
+            margin: 0;
+        }
+
+        .en-title {
+            font-family: var(--font-sans);
+            font-size: 0.7rem;
+            color: #999;
+            letter-spacing: 1px;
+            font-weight: 400;
+        }
+
+        .history-item {
+            background-color: var(--white);
+            padding: 0;
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            overflow: hidden;
+            margin-bottom: 12px;
+            transition: transform 0.2s;
+        }
+        
+        .history-item:active {
+            transform: scale(0.98);
+        }
+
+        .history-date-box {
+            background-color: #FAF8F5;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #F0EBE5;
+            min-width: 60px;
+        }
+
+        .day {
+            font-family: var(--font-serif);
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            line-height: 1;
+        }
+
+        .month {
+            font-size: 0.6rem;
+            color: #999;
+            margin-top: 2px;
+            letter-spacing: 1px;
+        }
+
+        .history-content {
+            padding: 12px 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .history-tag {
+            display: inline-block;
+            background-color: rgba(184, 134, 11, 0.1);
+            color: var(--primary-dark);
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            align-self: flex-start;
+        }
+
+        .history-text {
+            font-size: 0.85rem;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Video Capture - Removed */
+        /*
+        #videoElement {
+            display: none;
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+            background-color: #000;
+        }
+        #videoElement.active { display: block; }
+        .capture-controls {
+            display: none;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        .capture-controls.active { display: flex; }
+        */
+        
+    </style>
+</head>
+<body>
+
+    <!-- PAGE 1: HOME (待机界面) -->
+    <div id="page-home" class="page active">
+        <video class="home-bg-video" autoplay loop muted playsinline>
+            <source src="assets/home-bg.mp4" type="video/mp4">
+            <!-- Fallback if video fails -->
+        </video>
+        <button id="startBtn" class="start-btn">一键开启</button>
+    </div>
+
+    <!-- PAGE 2: UPLOAD (上传界面) -->
+    <div id="page-upload" class="page">
+        <div class="container">
+            <header>
+                <h1>这一件，怎么搭？</h1>
+                <p>上传图片，开启智能搭配</p>
+            </header>
+
+            <div class="upload-section">
+                <div class="form-group">
+                    <label>1. 上传服装图片</label>
+                    <div class="upload-buttons">
+                        <button class="upload-btn camera-btn" id="cameraBtn">
+                            <span>📷</span> <span>拍照</span>
+                        </button>
+                        <button class="upload-btn gallery-btn" id="galleryBtn">
+                            <span>📸</span> <span>相册</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 两个独立的 Input，分别用于相册和拍照 -->
+                    <!-- 相册 Input: 不带 capture 属性，允许用户选择 -->
+                    <input type="file" id="albumInput" accept="image/*" style="display: none;">
+                    
+                    <!-- 拍照 Input: capture="environment" 强制/优先拉起后置摄像头 -->
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+
+                    <div class="image-preview" id="imagePreview">
+                        <img id="previewImg" src="" alt="预览图">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>2. 搭配需求</label>
+                    <textarea id="styleDescription" placeholder="在此输入目标穿搭场景、风格、偏好元素。例如：多巴胺、浅春系穿搭、新中式..."></textarea>
+                    <div class="quick-tags" id="quickTags"></div>
+                </div>
+
+                <div class="button-group">
+                    <button class="generate-btn" id="generateBtn">生成搭配</button>
+                    <button class="clear-btn" id="clearBtn">重置</button>
+                </div>
+                
+                <!-- History -->
+            <div class="history-section">
+                <div class="history-header">
+                    <h3>灵感档案 <span class="en-title">ARCHIVE</span></h3>
+                </div>
+                <div class="history-list" id="historyList"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 3: PROCESSING (加载中界面) -->
+1    <div id="page-processing" class="page">
+        <div class="paper-container">
+            <div class="processing-content">
+                <div class="scan-wrapper">
+                    <div class="fabric-bg">
+                        <div class="outline-circle"></div>
+                    </div>
+                    <div class="magnifier">
+                        <div class="magnifier-texture"></div>
+                    </div>
+                </div>
+                
+                <h2 class="processing-title">Fashion Analysis</h2>
+                <p class="processing-subtitle" id="loadingText">正在解析面料与廓形</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 4: RESULT (结果展示界面) -->
+    <div id="page-result" class="page">
+        <div class="result-container">
+            <div class="result-header">
+                <h2 class="result-title-main">The Look</h2>
+                <p class="result-title-sub">您的单品搭配方案已生成</p>
+            </div>
+            
+            <div class="result-content">
+                <!-- Main AI Generated Image -->
+                <img id="resultImage" class="main-result-image" src="" alt="生成的效果图">
+                
+                <!-- Original Image Thumbnail (Overlay) -->
+                <div class="result-original-thumb-wrapper">
+                    <img id="resultOriginalImg" class="result-original-thumb" src="" alt="原图">
+                    <span class="thumb-label">Original</span>
+                </div>
+                
+                <!-- Prompt Decoration -->
+                <div id="resultPromptDecoration" class="prompt-decoration"></div>
+            </div>
+
+            <div class="result-actions">
+                <button id="downloadBtn" class="download-btn result-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 12L12 16L16 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 20L18 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    保存至相册
+                </button>
+                <button id="backHomeBtn" class="back-btn result-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12C4 7.58172 7.58172 4 12 4C15.053 4 17.6983 5.71197 19.0563 8.19634" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 12C20 16.4183 16.4183 20 12 20C8.94698 20 6.30174 18.288 4.94366 15.8037" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19 4V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 20V16H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    再次搭配
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Config -->
+    <script src="config.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Global Variables ---
+            const HISTORY_KEY = 'fashion_generator_history';
+
+            // --- Navigation Logic ---
+            const pages = {
+                home: document.getElementById('page-home'),
+                upload: document.getElementById('page-upload'),
+                processing: document.getElementById('page-processing'),
+                result: document.getElementById('page-result')
+            };
+
+            function navigateTo(pageId) {
+                // Hide all pages
+                Object.values(pages).forEach(page => {
+                    page.classList.remove('active');
+                    setTimeout(() => {
+                        if(!page.classList.contains('active')) page.style.display = 'none';
+                    }, 300); // Wait for transition
+                });
+
+                // Handle Loading Animation
+                if (pageId === 'processing') {
+                    startLoadingTextAnimation();
+                } else {
+                    stopLoadingTextAnimation();
+                }
+
+                // Show target page
+                const target = pages[pageId];
+                target.style.display = (pageId === 'processing') ? 'flex' : 'block';
+                // Trigger reflow
+                target.offsetHeight;
+                target.classList.add('active');
+            }
+
+            // --- Home Page ---
+            document.getElementById('page-home').addEventListener('click', () => {
+                navigateTo('upload');
+            });
+            
+            document.getElementById('startBtn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigateTo('upload');
+            });
+
+            // --- Elements ---
+            const cameraBtn = document.getElementById('cameraBtn');
+            const galleryBtn = document.getElementById('galleryBtn');
+            const albumInput = document.getElementById('albumInput');
+            const cameraInput = document.getElementById('cameraInput');
+            
+            const styleDescription = document.getElementById('styleDescription');
+            const generateBtn = document.getElementById('generateBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const imagePreview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            
+            // Result Elements
+            const resultImage = document.getElementById('resultImage');
+            const resultOriginalImg = document.getElementById('resultOriginalImg');
+            const resultPromptDecoration = document.getElementById('resultPromptDecoration');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const backHomeBtn = document.getElementById('backHomeBtn');
+
+            // Other
+            const quickTags = document.getElementById('quickTags');
+            const historyList = document.getElementById('historyList');
+
+            let capturedImageBlob = null;
+
+            // --- Loading Animation Logic ---
+            const loadingTexts = [
+                '正在识别单品核心特征',
+                '正在解析面料与廓形',
+                '正在为这件单品匹配服饰',
+                '正在匹配模特库',
+                '正在合成场景',
+                '正在为您生成专属杂志级搭配大片'
+            ];
+            let loadingTextIndex = 0;
+            let loadingTextInterval = null;
+            const loadingTextElement = document.getElementById('loadingText');
+
+            function updateLoadingText() {
+                loadingTextElement.classList.remove('fade-text');
+                // 强制重绘
+                void loadingTextElement.offsetWidth;
+                
+                loadingTextElement.textContent = loadingTexts[loadingTextIndex];
+                loadingTextElement.classList.add('fade-text');
+                
+                loadingTextIndex = (loadingTextIndex + 1) % loadingTexts.length;
+            }
+
+            function startLoadingTextAnimation() {
+                loadingTextIndex = 0;
+                updateLoadingText();
+                if (loadingTextInterval) clearInterval(loadingTextInterval);
+                loadingTextInterval = setInterval(updateLoadingText, 3000);
+            }
+
+            function stopLoadingTextAnimation() {
+                if (loadingTextInterval) {
+                    clearInterval(loadingTextInterval);
+                    loadingTextInterval = null;
+                }
+            }
+
+            // --- Configuration ---
+            // 风格标签配置 - 在此处修改标签文本
+            const STYLE_TAGS = [
+                '多巴胺活力', '新中式雅韵', '浅春氛围', '复古工装潮', 
+                '维多利亚优雅', '松弛感日常', '巴洛克绮梦', '韩系复古画报', 
+                '波西米亚漫游', '老钱质感', '洛可可甜奢', '英伦学院派', 
+                '日系森女风', '职场干练感', '法式慵懒感', '复古港风'
+            ];
+
+            // --- Initialization ---
+            initUI();
+
+            function initUI() {
+                if (typeof quickTags !== 'undefined') {
+                    quickTags.innerHTML = '';
+                    STYLE_TAGS.forEach(tag => {
+                        const tagElement = document.createElement('span');
+                        tagElement.className = 'tag';
+                        tagElement.textContent = tag;
+                        tagElement.onclick = () => {
+                            const val = styleDescription.value.trim();
+                            styleDescription.value = val ? val + '、' + tag : tag;
+                        };
+                        quickTags.appendChild(tagElement);
+                    });
+                }
+                loadHistory();
+            }
+
+            // --- Camera / Upload Logic ---
+            
+            // 拍照按钮 -> 触发 cameraInput
+            cameraBtn.addEventListener('click', () => {
+                cameraInput.click();
+            });
+            
+            // 相册按钮 -> 触发 albumInput
+            galleryBtn.addEventListener('click', () => {
+                albumInput.click();
+            });
+
+            // 处理图片选择 (公共函数)
+            function handleImageSelect(file) {
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        previewImg.src = e.target.result;
+                        resultOriginalImg.src = e.target.result; // Set for result page
+                        imagePreview.classList.add('active');
+                    };
+                    reader.readAsDataURL(file);
+                    capturedImageBlob = file; // 保存文件对象供后续上传使用
+                }
+            }
+
+            // 监听两个 Input 的变化
+            albumInput.addEventListener('change', (e) => handleImageSelect(e.target.files[0]));
+            cameraInput.addEventListener('change', (e) => handleImageSelect(e.target.files[0]));
+
+            clearBtn.addEventListener('click', () => {
+                albumInput.value = '';
+                cameraInput.value = '';
+                styleDescription.value = '';
+                imagePreview.classList.remove('active');
+                capturedImageBlob = null;
+            });
+
+            // --- Generation Logic ---
+            generateBtn.addEventListener('click', async () => {
+                let imageBlob = capturedImageBlob;
+                if (!imageBlob) {
+                    showToast('请先上传图片', 'error');
+                    return;
+                }
+                if (!styleDescription.value.trim()) {
+                    showToast('请输入搭配需求', 'error');
+                    return;
+                }
+
+                // Reset result image state - 强制清除旧图
+                resultImage.classList.remove('loaded');
+                resultImage.style.opacity = '0'; 
+                resultImage.src = ''; // Clear previous image
+                
+                // Go to processing page
+                navigateTo('processing');
+
+                try {
+                    const base64Image = await convertToBase64(imageBlob);
+                    const prompt = getFullPrompt(styleDescription.value.trim());
+                    
+                    // Call API
+                    const result = await generateStyledOutfit(base64Image, prompt);
+                    
+                    // Pre-load the new image with robust handling
+                    await new Promise((resolve, reject) => {
+                        // 使用新Image对象预加载，确保缓存就绪
+                        const img = new Image();
+                        img.onload = () => {
+                            // 加上时间戳防止缓存
+                            resultImage.src = result.generatedImageUrl;
+                            resolve();
+                        };
+                        img.onerror = () => reject(new Error('Image load failed'));
+                        // Add cache buster just in case
+                        img.src = result.generatedImageUrl;
+                        
+                        // Timeout fallback (8s) - 给手机端更多时间
+                        setTimeout(() => resolve(), 8000);
+                    });
+
+                    // Image loaded, show it
+                    resultImage.style.opacity = ''; // Remove inline style to let class take over
+                    // 强制重绘
+                    void resultImage.offsetWidth;
+                    resultImage.classList.add('loaded');
+                    
+                    // Set decorative prompt text
+                    if (resultPromptDecoration) {
+                        resultPromptDecoration.textContent = styleDescription.value.trim();
+                        // Reset first to trigger animation
+                        resultPromptDecoration.classList.remove('visible');
+                        setTimeout(() => {
+                            resultPromptDecoration.classList.add('visible');
+                        }, 100);
+                    }
+                    
+                    saveHistoryItem(styleDescription.value.trim());
+                    navigateTo('result');
+                    showToast('生成成功！', 'success');
+
+                } catch (error) {
+                    console.error(error);
+                    showToast('生成失败，请稍后重试', 'error');
+                    navigateTo('upload'); // Go back on error
+                }
+            });
+
+            // --- Result Actions ---
+            backHomeBtn.addEventListener('click', () => {
+                navigateTo('upload');
+            });
+
+            downloadBtn.addEventListener('click', async () => {
+                const imageUrl = resultImage.src;
+                if (!imageUrl) return;
+                
+                downloadBtn.textContent = '下载中...';
+                try {
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `fashion_${Date.now()}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    downloadBtn.textContent = '⬇️ 下载图片';
+                } catch (e) {
+                    console.error('自动下载失败，转为新窗口打开:', e);
+                    // 降级方案：在新窗口打开图片，让用户手动保存
+                    window.open(imageUrl, '_blank');
+                    showToast('已在新窗口打开，请长按或右键保存', 'info');
+                    
+                    downloadBtn.textContent = '⬇️ 下载图片';
+                }
+            });
+
+            // --- Helpers ---
+            function convertToBase64(blob) {
+                return new Promise((resolve, reject) => {
+                    // 读取文件
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            // 使用 canvas 压缩图片
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            
+                            // 获取压缩配置
+                            const maxWidth = (typeof UPLOAD_CONFIG !== 'undefined') ? UPLOAD_CONFIG.MAX_WIDTH : 1024;
+                            const maxHeight = (typeof UPLOAD_CONFIG !== 'undefined') ? UPLOAD_CONFIG.MAX_HEIGHT : 1024;
+                            const quality = (typeof UPLOAD_CONFIG !== 'undefined') ? UPLOAD_CONFIG.QUALITY : 0.8;
+                            const format = (typeof UPLOAD_CONFIG !== 'undefined') ? UPLOAD_CONFIG.FORMAT : 'image/jpeg';
+                            
+                            // 计算缩放比例
+                            if (width > maxWidth || height > maxHeight) {
+                                const ratio = Math.min(maxWidth / width, maxHeight / height);
+                                width = Math.floor(width * ratio);
+                                height = Math.floor(height * ratio);
+                            }
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            
+                            const ctx = canvas.getContext('2d');
+                            // 绘制图片（如果是有透明度的 PNG 转 JPEG，背景设为白色）
+                            if (format === 'image/jpeg') {
+                                ctx.fillStyle = '#FFFFFF';
+                                ctx.fillRect(0, 0, width, height);
+                            }
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            // 导出为 Base64
+                            const base64 = canvas.toDataURL(format, quality);
+                            resolve(base64);
+                        };
+                        img.onerror = reject;
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            }
+
+            function getFullPrompt(userInput) {
+                const base = (typeof PROMPT_CONFIG !== 'undefined') ? PROMPT_CONFIG.BASE_PROMPT : '结合我上传的服装进行整体搭配，并生成时尚杂志风格的效果图。注意生成图片里不要水印';
+                return base + '，' + userInput;
+            }
+
+            async function generateStyledOutfit(imageBase64, prompt) {
+                const apiConfig = (typeof API_CONFIG !== 'undefined') ? API_CONFIG : {
+                    API_KEY: 'YOUR_API_KEY_HERE',
+                    API_ENDPOINT: 'https://ark.cn-beijing.volces.com/api/v3/images/generations',
+                    MODEL: 'doubao-seedream-4-5-251128'
+                };
+                
+                const response = await fetch(apiConfig.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.API_KEY}` },
+                    body: JSON.stringify({
+                        model: apiConfig.MODEL,
+                        prompt: prompt,
+                        image: [imageBase64],
+                        response_format: 'url',
+                        stream: false,
+                        watermark: false
+                    })
+                });
+
+                if (!response.ok) throw new Error('API Error');
+                const data = await response.json();
+                const url = data.data?.[0]?.url || data.result?.[0]?.url || data.image_url;
+                if (!url) throw new Error('No URL');
+                return { generatedImageUrl: url };
+            }
+
+            // --- Toast ---
+            function showToast(message, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                const icon = type === 'error' ? '⚠️' : (type === 'success' ? '✅' : 'ℹ️');
+                toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
+                container.appendChild(toast);
+                toast.offsetHeight;
+                requestAnimationFrame(() => toast.classList.add('show'));
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => { if(container.contains(toast)) container.removeChild(toast); }, 300);
+                }, 3000);
+            }
+
+            // --- History ---
+            function loadHistory() {
+                try {
+                    const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+                    const historyList = document.getElementById('historyList');
+                    historyList.innerHTML = history.length ? '' : '<div class="empty-history" style="text-align:center;color:#999;padding:20px;font-size:0.8rem;">暂无灵感记录</div>';
+                    
+                    history.forEach(item => {
+                        // Use ID (timestamp) for date
+                        const date = new Date(item.id || Date.now());
+                        const day = date.getDate();
+                        const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+                        const month = monthNames[date.getMonth()];
+                        
+                        // Smart Tag Extraction
+                        let tag = '灵感';
+                        const prompt = item.prompt || '';
+                        if (prompt.includes('度假') || prompt.includes('海边')) tag = '度假风';
+                        else if (prompt.includes('通勤') || prompt.includes('职场') || prompt.includes('上班')) tag = '通勤';
+                        else if (prompt.includes('晚宴') || prompt.includes('正式') || prompt.includes('礼服')) tag = '晚宴';
+                        else if (prompt.includes('复古') || prompt.includes('Vintage')) tag = '复古';
+                        else if (prompt.includes('极简') || prompt.includes('高级')) tag = '极简';
+                        else if (prompt.includes('街头') || prompt.includes('潮')) tag = '街头';
+                        else if (prompt.includes('老钱')) tag = '老钱风';
+                        else if (prompt.includes('多巴胺')) tag = '多巴胺';
+                        else if (prompt.length > 0) tag = prompt.substring(0, 4);
+
+                        const div = document.createElement('div');
+                        div.className = 'history-item';
+                        div.innerHTML = `
+                            <div class="history-date-box">
+                                <span class="day">${day}</span>
+                                <span class="month">${month}</span>
+                            </div>
+                            <div class="history-content">
+                                <span class="history-tag">${tag}</span>
+                                <span class="history-text">${prompt}</span>
+                            </div>
+                        `;
+                        
+                        // Click to fill
+                        div.addEventListener('click', () => {
+                            const styleDescription = document.getElementById('styleDescription');
+                            if(styleDescription) {
+                                styleDescription.value = prompt;
+                                showToast('已填入灵感词');
+                            }
+                        });
+                        
+                        historyList.appendChild(div);
+                    });
+                } catch(e) {
+                    console.error('Error loading history:', e);
+                }
+            }
+            
+            function saveHistoryItem(prompt) {
+                const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+                history.unshift({ id: Date.now(), timestamp: new Date().toLocaleString(), prompt });
+                if(history.length > 50) history.length = 50;
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+                loadHistory();
+            }
+        });
+    </script>
+</body>
+</html>
